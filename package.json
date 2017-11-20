@@ -1,0 +1,22 @@
+{
+  "name": "escobar",
+  "version": "1.0.1",
+  "description": "Node.js micro framework for REST API or any other applications based on HTTP server. 0 dependencies. Fast, simple, flexible and light.",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {},
+  "author": {
+    "name": "Barinov Anton",
+    "email": "markelov.69@bk.ru"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antonbarinov/escobar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/antonbarinov/escobar/issues"
+  },
+  "homepage": "https://github.com/antonbarinov/escobar"
+}
