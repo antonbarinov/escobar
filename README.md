@@ -273,7 +273,7 @@ requestData - is main object for manipulating your application.
 
 **requestData has a following properties by default for each request:**
 
-_**._request**_ - [Node.js http request from client.](https://nodejs.org/api/http.html#http_class_http_clientrequest)
+_**._request**_ - [Node.js http request from client.](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 
 _**._response**_ - [Node.js http response from server.](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 
