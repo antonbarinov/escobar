@@ -72,6 +72,7 @@ function EscobarServer() {
             _routeParams: [],
             _clientResponse: '', // This will be send to client response
             _execOnBeforeSendResponse: true, // Exec onBeforeSendResponse hook?
+            _execRouting: true, // Exec routing?
             _http: HttpHelper(response, request), // help functions
             $_DATA: {}, // Data from body
             $_GET: {}, // Data from url query
@@ -79,6 +80,10 @@ function EscobarServer() {
         };
 
         try {
+            if (typeof this.onRequest == 'function') {
+                await this.onRequest(requestData);
+            }
+
             request.on('error', (err) => {
                 console.error(err);
                 errorResponse(requestData, 500);
@@ -88,116 +93,114 @@ function EscobarServer() {
                 console.error(err);
             });
 
-
-            // Parse URl and filter it from query string (GET params)
-            const parsedURL = urlParser.parse(request.url, true);
-            let url = parsedURL.pathname;
-            if (url.length > 1 && url.substr(-1) == '/') {
-                url = url.substr(0, url.length - 1);
-            }
-
-            // Try to find route
-            let renderFunc = this.routes[url];
-            if (!renderFunc) {
-                let routePath;
-                let splitted = url.split('/');
-                splitted.shift();
-                while(splitted.length) {
-                    routePath = '/' + splitted.join('/');
-                    renderFunc = this.routes[routePath];
-                    if (renderFunc) {
-                        requestData._route = routePath;
-                        requestData._routeParams = url.substr(routePath.length + 1).split('/');
-                        break;
-                    }
-                    splitted.pop();
-                }
-            } else {
-                requestData._route = url;
-            }
-
-            if (typeof this.onRequest == 'function') {
-                await this.onRequest(requestData);
-            }
-
-            if (renderFunc) {
-                let body = [];
-
-                // Headers check
-                const contentType = request.headers['content-type'];
-                const isMultipart = contentType && contentType.indexOf('multipart/form-data;') == 0;
-                const isJson = contentType && contentType.indexOf('application/json;') == 0;
-                const isFormUrlencoded = contentType && contentType == 'application/x-www-form-urlencoded';
-
-                let multipartFormDataParser = null;
-                if (this.useMultipartParser) {
-                    if (isMultipart) {
-                        multipartFormDataParser = new MultipartFormDataParser(contentType, requestData);
-                    }
+            if (requestData._execRouting) {
+                // Parse URl and filter it from query string (GET params)
+                const parsedURL = urlParser.parse(request.url, true);
+                let url = parsedURL.pathname;
+                if (url.length > 1 && url.substr(-1) == '/') {
+                    url = url.substr(0, url.length - 1);
                 }
 
-                let formUrlencodedParser = null;
-                if (this.useUrlencodedParser) {
-                    if (isFormUrlencoded) formUrlencodedParser = new FormUrlencodedParser(requestData);
-                }
-
-
-                let queryStrIndex = request.url.indexOf('?');
-                if (queryStrIndex >= 0) {
-                    requestData.$_GET = querystring.parse(request.url.substr(queryStrIndex + 1)) || {};
-                }
-
-
-                // Wait for request end and after that we will be ready to send response
-                await (() => new Promise((resolve) => {
-                    let chunks = 0;
-                    let isEnd = false;
-
-                    request.on('data', async (chunk) => {
-                        chunks++;
-                        try {
-                            if (this.useJsonParser && isJson) body.push(chunk);
-                            if (this.useMultipartParser && isMultipart) await multipartFormDataParser.addChunk(chunk);
-                            if (this.useUrlencodedParser && isFormUrlencoded) await formUrlencodedParser.addChunk(chunk);
-                        } catch (e) {
-                            console.error(e);
+                // Try to find route
+                let renderFunc = this.routes[url];
+                if (!renderFunc) {
+                    let routePath;
+                    let splitted = url.split('/');
+                    splitted.shift();
+                    while (splitted.length) {
+                        routePath = '/' + splitted.join('/');
+                        renderFunc = this.routes[routePath];
+                        if (renderFunc) {
+                            requestData._route = routePath;
+                            requestData._routeParams = url.substr(routePath.length + 1).split('/');
+                            break;
                         }
-                        chunks--;
-                        if (chunks == 0 && isEnd) resolve(true);
-                    });
-
-                    request.on('end', () => {
-                        isEnd = true;
-                        if (chunks == 0) resolve(true);
-                    });
-                }))();
-
-                response.on('error', (err) => {
-                    console.error(err);
-                });
-
-                if (this.useJsonParser && isJson && body.length) {
-                    requestData.$_DATA = JSON.parse(Buffer.concat(body).toString());
-                }
-
-                let doExecRoute = true;
-                if (typeof this.onBeforeEndpoint == 'function') {
-                    doExecRoute = await this.onBeforeEndpoint(requestData);
-                }
-
-
-                if (doExecRoute) {
-                    if (typeof this.onExecRoute == 'function') {
-                        await this.onExecRoute(requestData, renderFunc);
-                    } else {
-                        requestData._clientResponse = await renderFunc(requestData);
+                        splitted.pop();
                     }
-                }
-            } else {
-                if (typeof this.onEndpointNotFound != 'function') {
-                    errorResponse(requestData, 404);
                 } else {
-                    await this.onEndpointNotFound(requestData);
+                    requestData._route = url;
+                }
+
+
+                if (renderFunc) {
+                    let body = [];
+
+                    // Headers check
+                    const contentType = request.headers['content-type'];
+                    const isMultipart = contentType && contentType.indexOf('multipart/form-data;') == 0;
+                    const isJson = contentType && contentType.indexOf('application/json;') == 0;
+                    const isFormUrlencoded = contentType && contentType == 'application/x-www-form-urlencoded';
+
+                    let multipartFormDataParser = null;
+                    if (this.useMultipartParser) {
+                        if (isMultipart) {
+                            multipartFormDataParser = new MultipartFormDataParser(contentType, requestData);
+                        }
+                    }
+
+                    let formUrlencodedParser = null;
+                    if (this.useUrlencodedParser) {
+                        if (isFormUrlencoded) formUrlencodedParser = new FormUrlencodedParser(requestData);
+                    }
+
+
+                    let queryStrIndex = request.url.indexOf('?');
+                    if (queryStrIndex >= 0) {
+                        requestData.$_GET = querystring.parse(request.url.substr(queryStrIndex + 1)) || {};
+                    }
+
+
+                    // Wait for request end and after that we will be ready to send response
+                    await (() => new Promise((resolve) => {
+                        let chunks = 0;
+                        let isEnd = false;
+
+                        request.on('data', async (chunk) => {
+                            chunks++;
+                            try {
+                                if (this.useJsonParser && isJson) body.push(chunk);
+                                if (this.useMultipartParser && isMultipart) await multipartFormDataParser.addChunk(chunk);
+                                if (this.useUrlencodedParser && isFormUrlencoded) await formUrlencodedParser.addChunk(chunk);
+                            } catch (e) {
+                                console.error(e);
+                            }
+                            chunks--;
+                            if (chunks == 0 && isEnd) resolve(true);
+                        });
+
+                        request.on('end', () => {
+                            isEnd = true;
+                            if (chunks == 0) resolve(true);
+                        });
+                    }))();
+
+                    response.on('error', (err) => {
+                        console.error(err);
+                    });
+
+                    if (this.useJsonParser && isJson && body.length) {
+                        requestData.$_DATA = JSON.parse(Buffer.concat(body).toString());
+                    }
+
+                    let doExecRoute = true;
+                    if (typeof this.onBeforeEndpoint == 'function') {
+                        doExecRoute = await this.onBeforeEndpoint(requestData);
+                    }
+
+
+                    if (doExecRoute) {
+                        if (typeof this.onExecRoute == 'function') {
+                            await this.onExecRoute(requestData, renderFunc);
+                        } else {
+                            requestData._clientResponse = await renderFunc(requestData);
+                        }
+                    }
+                } else {
+                    if (typeof this.onEndpointNotFound != 'function') {
+                        errorResponse(requestData, 404);
+                    } else {
+                        await this.onEndpointNotFound(requestData);
+                    }
                 }
             }
         } catch (e) {
