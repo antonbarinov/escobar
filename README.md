@@ -301,7 +301,7 @@ _**._clientResponse**_ - This will be sent to client. (Default: '')
 
 _**._execOnBeforeSendResponse**_ - Do we need to exec callback `onBeforeSendResponse`?. (Default: true)
 
-_**._execRouting**_ - Do we need to exec routing flow?. (Default: true)
+_**._execRouting**_ - Do we need to exec routing flow?. _NOTE: Change this property available only inside `onRequest` callback._ (Default: true)
 
 _**.$_DATA**_ - Parsed data from request body. (Default: {})
 
