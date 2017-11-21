@@ -127,8 +127,8 @@ function EscobarServer() {
 
                     // Headers check
                     const contentType = request.headers['content-type'];
-                    const isMultipart = contentType && contentType.indexOf('multipart/form-data;') == 0;
-                    const isJson = contentType && contentType.indexOf('application/json;') == 0;
+                    const isMultipart = contentType && contentType.indexOf('multipart/form-data') == 0;
+                    const isJson = contentType && contentType.indexOf('application/json') == 0;
                     const isFormUrlencoded = contentType && contentType == 'application/x-www-form-urlencoded';
 
                     let multipartFormDataParser = null;
