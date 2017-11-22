@@ -16,9 +16,9 @@ Node.js that supports async/await. (version 8 or higher has native support)
 - Light
 
 ### Navigation
-- [Installation](https://github.com/antonbarinov/escobar#installation)
-- [Escobar server documentation](https://github.com/antonbarinov/escobar#escobar-server)
-- [requestData object documentation](https://github.com/antonbarinov/escobar#requestdata)
+- [Installation](#installation)
+- [Escobar server documentation](#escobar-server)
+- [requestData object documentation](#requestdata)
 
 # Installation
 ```
@@ -71,7 +71,7 @@ server.httpServer.timeout = 30000; // Set timeout to 30 sec.
 ### Callbacks
 **All callback functions must be with async/await syntactic sugar or return Promise.**
 
-**_.onRequest([requestData](https://github.com/antonbarinov/escobar#requestdata))_** - Fires when we got new request.
+**_.onRequest([requestData](#requestdata))_** - Fires when we got new request.
 
 ```
 server.onRequest = async (requestData) => {
@@ -100,7 +100,7 @@ server.onRequest = async (requestData) => {
 }
 ```
 
-**_.onError([requestData](https://github.com/antonbarinov/escobar#requestdata), err)_** - Fires when we got errors.
+**_.onError([requestData](#requestdata), err)_** - Fires when we got errors.
 ```
 const getErrorMsg = (e) => {
     let msg = 'Internal Server Error';
@@ -125,7 +125,7 @@ server.onError = async (requestData, err) => {
 }
 ```
 
-**_.onBeforeEndpoint([requestData](https://github.com/antonbarinov/escobar#requestdata))_** - Fires before routing function will be executed. If it return `true` - routing function will be executed. If it return `false` - routing function will ***NOT*** be executed. 
+**_.onBeforeEndpoint([requestData](#requestdata))_** - Fires before routing function will be executed. If it return `true` - routing function will be executed. If it return `false` - routing function will ***NOT*** be executed. 
 ```
 server.onBeforeEndpoint = async (requestData) => {
     // Some function that check access
@@ -146,7 +146,7 @@ server.onBeforeEndpoint = async (requestData) => {
 }
 ```
 
-**_.onBeforeSendResponse([requestData](https://github.com/antonbarinov/escobar#requestdata))_** - Fires before we send response to client (`response.end(requestData._clientResponse);`). 
+**_.onBeforeSendResponse([requestData](#requestdata))_** - Fires before we send response to client (`response.end(requestData._clientResponse);`). 
 ```
 server.onBeforeSendResponse = async (requestData) => {
     // You can modify requestData._clientResponse here and it will be sent to client modified
@@ -162,7 +162,7 @@ server.onBeforeSendResponse = async (requestData) => {
 };
 ```
 
-**_.onEndpointNotFound([requestData](https://github.com/antonbarinov/escobar#requestdata))_** - Fires when we don't find any route for request. Example (https://example.com/endpoint/that/does/not/exists) 
+**_.onEndpointNotFound([requestData](#requestdata))_** - Fires when we don't find any route for request. Example (https://example.com/endpoint/that/does/not/exists) 
 ```
 const endpointNotFound = JSON.stringify({
     status: "FAIL",
@@ -180,7 +180,7 @@ server.onEndpointNotFound = async (requestData) => {
 };
 ```
 
-**_.onExecRoute([requestData](https://github.com/antonbarinov/escobar#requestdata), renderFunc)_** - If this callback function is defined, you need to rewrite default execution. **renderFunc** - route function.
+**_.onExecRoute([requestData](#requestdata), renderFunc)_** - If this callback function is defined, you need to rewrite default execution. **renderFunc** - route function.
 
 Default route execution is simply:   
 ```
