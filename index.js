@@ -6,7 +6,6 @@ const urlParser = require('url');
 const HttpHelper = require('./lib/http_helper');
 const routing = require('./lib/routing');
 const MultipartFormDataParser = require('./lib/multipart_form_data_parser');
-const FormUrlencodedParser = require('./lib/form_ulencoded_parser');
 const helpers = require('./lib/helpers');
 
 
@@ -40,20 +39,19 @@ function EscobarServer() {
     this.useUrlencodedParser = true;
 
 
-    this.loadRoutes = (pathToFolder) => {
+    this.loadRoutes = async (pathToFolder) => {
         const timerStr = 'Routes load time';
         console.time(timerStr);
-        routing(pathToFolder, (_routes) => {
-            if (_routes === false) {
-                console.error(`There is no routes loaded, please check ${pathToFolder} folder.`);
-            } else {
-                console.timeEnd(timerStr);
-                this.routes = _routes;
-                helpers.forEach(_routes, (key) => {
-                    console.log(`Loaded route: ${key}`);
-                });
-            }
-        });
+        const _routes = await routing(pathToFolder);
+        if (_routes === false) {
+            console.error(`There is no routes loaded, please check ${pathToFolder} folder.`);
+        } else {
+            console.timeEnd(timerStr);
+            this.routes = _routes;
+            helpers.forEach(_routes, (key) => {
+                console.log(`Loaded route: ${key}`);
+            });
+        }
     };
 
     this.httpServer = http.createServer(async (request, response) => {
@@ -138,12 +136,6 @@ function EscobarServer() {
                         }
                     }
 
-                    let formUrlencodedParser = null;
-                    if (this.useUrlencodedParser) {
-                        if (isFormUrlencoded) formUrlencodedParser = new FormUrlencodedParser(requestData);
-                    }
-
-
                     let queryStrIndex = request.url.indexOf('?');
                     if (queryStrIndex >= 0) {
                         requestData.$_GET = querystring.parse(request.url.substr(queryStrIndex + 1)) || {};
@@ -158,9 +150,8 @@ function EscobarServer() {
                         request.on('data', async (chunk) => {
                             chunks++;
                             try {
-                                if (this.useJsonParser && isJson) body.push(chunk);
+                                if ((this.useJsonParser && isJson) || (this.useUrlencodedParser && isFormUrlencoded)) body.push(chunk);
                                 if (this.useMultipartParser && isMultipart) await multipartFormDataParser.addChunk(chunk);
-                                if (this.useUrlencodedParser && isFormUrlencoded) await formUrlencodedParser.addChunk(chunk);
                             } catch (e) {
                                 console.error(e);
                             }
@@ -178,8 +169,9 @@ function EscobarServer() {
                         console.error(err);
                     });
 
-                    if (this.useJsonParser && isJson && body.length) {
-                        requestData.$_DATA = JSON.parse(Buffer.concat(body).toString());
+                    if ((this.useJsonParser && isJson) || (this.useUrlencodedParser && isFormUrlencoded) && body.length) {
+                        if (isJson) requestData.$_DATA = JSON.parse(Buffer.concat(body).toString());
+                        if (isFormUrlencoded) requestData.$_DATA = querystring.parse(Buffer.concat(body).toString());
                     }
 
                     let doExecRoute = true;
