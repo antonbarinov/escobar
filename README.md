@@ -303,6 +303,8 @@ _**._execOnBeforeSendResponse**_ - Do we need to exec callback `onBeforeSendResp
 
 _**._execRouting**_ - Do we need to exec routing flow?. _NOTE: Change this property available only inside `onRequest` callback._ (Default: true)
 
+_**._customResponse**_ - If true, `response.end(requestData._clientResponse);` will not be executed in the end of request life cycle. 
+
 _**.$_DATA**_ - Parsed data from request body. (Default: {})
 
 _**.$_GET**_ - Parsed data from query params. (Default: {})

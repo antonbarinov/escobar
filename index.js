@@ -58,6 +58,7 @@ class EscobarServer {
                 _clientResponse: '', // This will be send to client response
                 _execOnBeforeSendResponse: true, // Exec onBeforeSendResponse hook?
                 _execRouting: true, // Exec routing?
+                _customResponse: false, // If true, response.end(requestData._clientResponse); will not be executed in the end of request life cycle
                 _http: HttpHelper(response, request), // help functions
                 $_DATA: {}, // Data from body
                 $_GET: {}, // Data from url query
@@ -202,7 +203,9 @@ class EscobarServer {
                     await this.onBeforeSendResponse(requestData);
                 }
 
-                response.end(requestData._clientResponse);
+                if (!requestData._customResponse) {
+                    response.end(requestData._clientResponse);
+                }
             } catch (e) {
                 console.error(e);
             }
