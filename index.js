@@ -28,17 +28,21 @@ class EscobarServer {
     }
 
     async loadRoutes(pathToFolder) {
-        const timerStr = 'Routes load time';
-        console.time(timerStr);
-        const _routes = await routing(pathToFolder);
-        if (_routes === false) {
-            console.error(`There is no routes loaded, please check ${pathToFolder} folder.`);
-        } else {
-            console.timeEnd(timerStr);
-            this.routes = _routes;
-            helpers.forEach(_routes, (key) => {
-                console.log(`Loaded route: ${key}`);
-            });
+        try {
+            const timerStr = 'Routes load time';
+            console.time(timerStr);
+            const _routes = await routing(pathToFolder);
+            if (_routes === false) {
+                console.error(`There is no routes loaded, please check ${pathToFolder} folder.`);
+            } else {
+                console.timeEnd(timerStr);
+                this.routes = _routes;
+                helpers.forEach(_routes, (key) => {
+                    console.log(`Loaded route: ${key}`);
+                });
+            }
+        } catch (e) {
+            throw e;
         }
     };
 
