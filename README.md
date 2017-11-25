@@ -46,7 +46,7 @@ server.startServer();
 
 **_.port_** - Http server binding port. (Default: 3000)
 
-**_.httpServer_** - [Node.js http.Server](https://nodejs.org/api/http.html#http_class_http_server)
+**_.httpServer_** - [Node.js http.Server](https://nodejs.org/api/http.html#http_class_http_server) (Available after `.startServer()` exec`)
 
 ```
 server.httpServer.timeout = 30000; // Set timeout to 30 sec.
