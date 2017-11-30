@@ -401,7 +401,7 @@ server.port = 3003; // Port
 
 **_.onBeforeSendResponse([requestData](#requestdata-websockets))_** - Fires before we send response to client (`ws.send(requestData._clientResponse);`). 
 
-**_.onEndpointNotFound([requestData](#requestdata-websockets))_** - Fires when we don't find any route for request. Example (https://example.com/endpoint/that/does/not/exists) 
+**_.onEndpointNotFound([requestData](#requestdata-websockets))_** - Fires when we don't find any route for request. Example ({endpoint: "/does/not/exists"}) 
 
 **_.onExecRoute([requestData](#requestdata-websockets), renderFunc)_** - If this callback function is defined, you need to rewrite default execution. **renderFunc** - route function.
 
