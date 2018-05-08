@@ -1,7 +1,6 @@
 # Escobar
 
 > Node.js micro framework for REST API or any other applications based on HTTP server.
-> Also it has websocket's support.
 
 > Application example with recommended architecture is [here](https://github.com/antonbarinov/escobar-architecture)
 
@@ -20,8 +19,6 @@ Node.js that supports async/await. (version 7.6 or higher has native support)
 - [Installation](#installation)
 - [Escobar server documentation](#escobar-server)
 - [requestData object documentation](#requestdata)
-- [Escobar websocket server documentation](#escobar-websocket-server)
-- [requestData object for websockets documentation](#requestdata-websockets)
 
 
 # Installation
@@ -72,13 +69,20 @@ server.httpServer.timeout = 30000; // Set timeout to 30 sec.
 **_.useUrlencodedParser_** - Parse request body data, when Content-Type is 'application/x-www-form-urlencoded'. (Default: true)
 
 
-### Callbacks
-**All callback functions must be with async/await syntactic sugar or return Promise.**
+### Events
+**All events functions must be async or return Promise.**
 
-**_.onRequest([requestData](#requestdata))_** - Fires when we got new request.
+
+**Event: 'request'**
+
+Fires when we got new request.
+
+Arguments: 
+
+- [requestData](#requestdata)
 
 ```
-server.onRequest = async (requestData) => {
+server.on('request', async (requestData) => {
    const res = requestData._response;
    const req = requestData._request;
 
@@ -101,10 +105,146 @@ server.onRequest = async (requestData) => {
    // You can use your tools to parse this data
 
    return true;
-}
+});
 ```
 
-**_.onError([requestData](#requestdata), err)_** - Fires when we got errors.
+**Event: 'before_endpoint'**
+
+Fires before routing function will be executed. If it return `true` - routing function will be executed. If it return `false` - routing function will ***NOT*** be executed.
+
+Arguments: 
+
+- [requestData](#requestdata)
+
+```
+server.on('before_endpoint', async (requestData) => {
+    // Get sessionId
+    requestData._sessionId =
+        requestData._request.headers.sessionid
+        || requestData.$_GET.sessionId
+        || requestData._http.getCookie(__sessionCookieName)
+        || requestData._sessionId;
+        
+    // Some function that check access
+    requestData._user = await auth(requestData);
+    
+});
+```
+
+**Event: 'exec_route'**
+
+If this event is handled, you need to rewrite default execution. **renderFunc** - route function.
+
+Arguments: 
+
+- [requestData](#requestdata)
+- renderFunc
+
+Default route execution is simply:   
+```
+requestData._clientResponse = await renderFunc(requestData);
+```
+
+Custom execution example:
+```
+server.on('exec_route', async (requestData, renderFunc) => {
+    const method = requestData._request.method;
+    const funcToExec = renderFunc[method];
+
+    if (funcToExec) {
+        if (funcToExec.authOnly && !requestData._user) {
+            requestData._clientResponse = __unauthorized(requestData, "You don't have access to this resource.");
+            return false;
+        }
+
+        requestData._clientResponse = await funcToExec.exec(requestData);
+    } else {
+        requestData._clientResponse = __badRequest(requestData, `Method '${method}' is not supported for this endpoint`);
+    }
+
+    return true;
+});
+
+// Route index file
+// ./routes/some/endpoint/__index.js
+module.exports = {
+    GET: require('./GET'),
+    POST: require('./POST')
+};
+
+// Route logic file
+// ./routes/some/endpoint/GET.js
+module.exports = {
+    authOnly: true,
+    exec: async (requestData) => {
+        // Return response string that will be delivered to the client
+        return {
+            status: 'OK',
+            data: 'Hello world!'
+        };
+    }
+};
+```
+
+**Event: 'before_send_response'**
+
+Fires before we send response to client (`response.end(requestData._clientResponse);`).
+
+Arguments: 
+
+- [requestData](#requestdata)
+ 
+```
+server.on('before_send_response', async (requestData) => {
+    // You can modify requestData._clientResponse here and it will be sent to client modified
+
+    try {
+        if (typeof requestData._clientResponse === 'object') {
+            requestData._clientResponse = JSON.stringify(requestData._clientResponse);
+        }
+    } catch (e) {
+        requestData._clientResponse = JSON.stringify({
+            status: "FAIL",
+            message: getErrorMsg(e)
+        })
+    }
+});
+```
+
+**Event: 'not_found'**
+
+Fires when we don't find any route for request. Example (https://example.com/endpoint/that/does/not/exists)
+
+Arguments: 
+
+- [requestData](#requestdata)
+ 
+```
+const endpointNotFound = JSON.stringify({
+    status: "FAIL",
+    message: "Endpoint not found"
+});
+
+server.on('not_found', async (requestData) => {
+    // Don't exec server.onBeforeSendResponse
+    // Because i don't want to waste CPU time for JSON.stringify every time
+    requestData._execOnBeforeSendResponse = false;
+
+    requestData._clientResponse = endpointNotFound;
+    
+    return true;
+});
+```
+
+**Event: 'error'**
+
+Fires when we got error.
+
+Arguments: 
+
+- [requestData](#requestdata)
+- err
+
 ```
 const getErrorMsg = (e) => {
     let msg = 'Internal Server Error';
@@ -117,7 +257,7 @@ const getErrorMsg = (e) => {
     return msg;
 };
 
-server.onError = async (requestData, err) => {
+server.on('error', async (requestData, err) => {
     requestData._http.setCode(500);
     
     requestData._clientResponse = {
@@ -126,114 +266,15 @@ server.onError = async (requestData, err) => {
     };
     
     return true;
-}
-```
-
-**_.onBeforeEndpoint([requestData](#requestdata))_** - Fires before routing function will be executed. If it return `true` - routing function will be executed. If it return `false` - routing function will ***NOT*** be executed. 
-```
-server.onBeforeEndpoint = async (requestData) => {
-    // Some function that check access
-    const isUserAuthorized = await checkUserAuth(requestData);
-    
-    if (requestData._route != '/auth' && !userGotAccess) {
-        requestData._http.setCode(401);
-            
-        requestData._clientResponse = {
-            status: 'FAIL',
-            message: 'Unauthorized'
-        };
-        
-        return false;
-    }
-    
-    return true;
-}
-```
-
-**_.onBeforeSendResponse([requestData](#requestdata))_** - Fires before we send response to client (`response.end(requestData._clientResponse);`). 
-```
-server.onBeforeSendResponse = async (requestData) => {
-    // You can modify requestData._clientResponse here and it will be sent to client modified
-  
-    try {
-        requestData._clientResponse = JSON.stringify(requestData._clientResponse);
-    } catch (e) {
-        requestData._clientResponse = JSON.stringify({
-            status: "FAIL",
-            message: getErrorMsg(e)
-        })
-    }
-};
-```
-
-**_.onEndpointNotFound([requestData](#requestdata))_** - Fires when we don't find any route for request. Example (https://example.com/endpoint/that/does/not/exists) 
-```
-const endpointNotFound = JSON.stringify({
-    status: "FAIL",
-    message: "Endpoint not found"
 });
-
-server.onEndpointNotFound = async (requestData) => {
-    // Don't exec server.onBeforeSendResponse
-    // Because i don't want to waste CPU time for JSON.stringify every time
-    requestData._execOnBeforeSendResponse = false;
-
-    requestData._clientResponse = endpointNotFound;
-    
-    return true;
-};
 ```
 
-**_.onExecRoute([requestData](#requestdata), renderFunc)_** - If this callback function is defined, you need to rewrite default execution. **renderFunc** - route function.
+### Events life cycle
 
-Default route execution is simply:   
-```
-requestData._clientResponse = await renderFunc(requestData);
-```
-
-Custom execution example:
-```
-server.onExecRoute = async (requestData, renderFunc) => {
-    renderFunc = renderFunc();
-    const method = requestData._request.method;
-    const funcToExec = renderFunc[method];
-
-    if (funcToExec) {
-        requestData._clientResponse = await funcToExec(requestData); // Example 1 for this stuff
-        // Or
-        // await funcToExec(requestData); // Example 2 for this stuff
-    } else {
-        requestData._clientResponse = __badRequest(requestData, `Method '${method}' is not supported for this endpoint`);
-    }
-
-    return true;
-};
-
-// Example 1:
-// Route function
-// ./routes/some/endpoint/__index.js
-module.exports = function () {
-    this.GET = require('./GET');
-    this.POST = require('./POST');
-
-    return this;
-};
-
-// Example 2:
-// Route function
-// ./routes/some/endpoint/__index.js
-module.exports = function () {
-    this.GET = async (requestData) => {
-        requestData._clientResponse = {};
-        requestData._clientResponse.user = await getUserData(requestData);
-        requestData._clientResponse.orders = await getUserOrders(requestData);
-        
-        return true;
-    }
-
-    return this;
-};
-```
+- await util executed: `request`
+- await util executed: `before_endpoint`
+- await util executed: `exec_route`
+- await util executed: `before_send_response`
 
 ### Functions
 
@@ -309,6 +350,8 @@ _**._execOnBeforeSendResponse**_ - Do we need to exec callback `onBeforeSendResp
 
 _**._execRouting**_ - Do we need to exec routing flow?. _NOTE: Change this property available only inside `onRequest` callback._ (Default: true)
 
+_**._execRoute**_ - Do we need to exec route or 'exec_route' event?. (Default: true)
+
 _**._customResponse**_ - If true, `response.end(requestData._clientResponse);` will not be executed in the end of request life cycle. 
 
 _**.$_DATA**_ - Parsed data from request body. (Default: {})
@@ -357,84 +400,3 @@ This function do following stuff:
 requestData._response.statusCode = code;
 requestData._response.statusMessage = http.STATUS_CODES[code];
 ```
-
-
-## Escobar websocket server
-
-```
-const EscobarServer = require('escobar/WebSocketServer'); // Application server
-const server = new EscobarServer(require('uws').Server);
-
-
-server.host = '0.0.0.0'; // Host
-server.port = 3003; // Port
-
-/**
- * Do some stuff and start server
- */
-(async () => {
-    // await for some stuff (example database migrations scripts, start some services, etc.)
-
-    // This wrapped in "async" because almost always we do to so some stuff before we can start handle connections
-    await server.loadRoutes(__dirname + '/ws_routes'); // Load routes from folder
-    server.startServer(); // Start server
-})();
-```
-
-### Settings
-**_.host_** - ws server binding host. (Default: '0.0.0.0')
-
-**_.port_** - ws server binding port. (Default: 3000)
-
-**_.backlog_** - ws server backlog connections. (Default: 65535)
-
-### Callbacks
-**All callback functions must be with async/await syntactic sugar or return Promise.**
-
-**_.onConnect([requestData](#requestdata-websockets))_** - Fires when someone connected.
-
-**_.onMessage([requestData](#requestdata-websockets))_** - Fires when we receive message.
-
-**_.onError([requestData](#requestdata-websockets), err)_** - Fires when we got errors.
-
-**_.onBeforeEndpoint([requestData](#requestdata-websockets))_** - Fires before routing function will be executed. If it return `true` - routing function will be executed. If it return `false` - routing function will ***NOT*** be executed. 
-
-**_.onBeforeSendResponse([requestData](#requestdata-websockets))_** - Fires before we send response to client (`ws.send(requestData._clientResponse);`). 
-
-**_.onEndpointNotFound([requestData](#requestdata-websockets))_** - Fires when we don't find any route for request. Example ({endpoint: "/does/not/exists"}) 
-
-**_.onExecRoute([requestData](#requestdata-websockets), renderFunc)_** - If this callback function is defined, you need to rewrite default execution. **renderFunc** - route function.
-
-Default route execution is simply:   
-```
-requestData._clientResponse = await renderFunc(requestData);
-```
-
-### Functions
-
-**_.startServer()_** - Start server.
-
-**_.loadRoutes(pathToFolder)_** - Load routes from folder. **pathToFolder** - Full path to folder that contains routes.
-
-## requestData websockets
-requestData - is main object for manipulating your application.
-
-**requestData has a following properties by default for each request:**
-
-_**._ws**_ - WebSocket object
-
-_**._route**_ - Endpoint route (example: '/api/version'). (Default: false)
-
-NOTE: If you define it inside `.onRequest` callback, routing will try to navigate using this url, instead of url from request.
-
-_**._routeParams**_ - See explanation below. (Default: [])
-
-_**._clientResponse**_ - This will be sent to client. (Default: '')
-
-_**._execOnBeforeSendResponse**_ - Do we need to exec callback `onBeforeSendResponse`?. (Default: true)
-
-_**._execRouting**_ - Do we need to exec routing flow?. _NOTE: Change this property available only inside `onRequest` callback._ (Default: true)
-
-_**._customResponse**_ - If true, `response.end(requestData._clientResponse);` will not be executed in the end of request life cycle. 
-
-_**.$_DATA**_ - Parsed JSON data websocket message.

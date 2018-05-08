@@ -3,23 +3,17 @@
 const routing = require('./lib/routing');
 const helpers = require('./lib/helpers');
 const httpServer = require('./lib/http_server');
+const AsyncEventEmitter = require('./lib/async_event_emitter');
 
 
-class EscobarServer {
+class EscobarServer extends AsyncEventEmitter {
     constructor() {
+        super();
         this.host = '0.0.0.0';
         this.port = 3000;
         this.backlog = 65535;
 
         this.routes = {};
-
-        // Callbacks
-        this.onBeforeEndpoint = null;
-        this.onBeforeSendResponse = null;
-        this.onEndpointNotFound = null;
-        this.onExecRoute = null;
-        this.onRequest = null;
-        this.onError = null;
 
         // Parsers
         this.useJsonParser = true;
@@ -46,7 +40,7 @@ class EscobarServer {
         /**
          * Run HTTP server and listen connections
          */
-        this.httpServer = httpServer.bind(this)();
+        this.httpServer = httpServer.apply(this);
 
         this.httpServer.on('clientError', (err, socket) => {
             socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');

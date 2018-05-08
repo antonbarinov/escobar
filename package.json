@@ -1,7 +1,7 @@
 {
   "name": "escobar",
-  "version": "2.2.0",
-  "description": "Node.js micro framework for REST API or any other applications based on HTTP server or WebSockets. 0 dependencies. Fast, simple, flexible and light.",
+  "version": "3.0.0",
+  "description": "Node.js micro framework for REST API or any other applications based on HTTP server. 0 dependencies. Fast, simple, flexible and light.",
   "main": "index.js",
   "dependencies": {},
   "devDependencies": {},
